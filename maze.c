@@ -96,11 +96,11 @@ void free_maze(maze* this)
 int get_width(FILE* file)
 {
     int width;
-    // 读取第一个整数并验证范围
+    // Read width integers and verify ranges
     if (fscanf(file, "%d", &width) != 1 ||
         width < MIN_DIM || width > MAX_DIM)
     {
-        return 0; // 无效宽度
+        return 0;
     }
     return width;
 }
@@ -114,11 +114,11 @@ int get_width(FILE* file)
 int get_height(FILE* file)
 {
     int height;
-    // 读取第二个整数并验证范围
+    // Read  height integers and verify ranges
     if (fscanf(file, "%d", &height) != 1 ||
         height < MIN_DIM || height > MAX_DIM)
     {
-        return 0; // 无效高度
+        return 0;
     }
     return height;
 }
@@ -132,16 +132,16 @@ int get_height(FILE* file)
  */
 int read_maze(maze* this, FILE* file)
 {
-    char buffer[MAX_DIM + 2]; // +2考虑换行符和空字符
+    char buffer[MAX_DIM + 2]; // +2Consider line breaks and null characters
 
     for (int i = 0; i < this->height; i++)
     {
         if (!fgets(buffer, sizeof(buffer), file))
         {
-            return 1; // 文件读取失败
+            return 1; //read failure
         }
 
-        // 手动处理换行符和计算长度
+        // Processing line breaks and calculating length
         int len = 0;
         int has_newline = 0;
         while (len < (MAX_DIM + 2) && buffer[len] != '\0')
@@ -155,13 +155,13 @@ int read_maze(maze* this, FILE* file)
         }
         if (has_newline)
         {
-            buffer[len] = '\0'; // 替换换行符为结束符
+            buffer[len] = '\0';
         }
 
-        // 验证行长度
+        // Verify line length
         if (len != this->width)
         {
-            return 1; // 行长度不匹配
+            return 1;
         }
 
         for (int j = 0; j < this->width; j++)
@@ -169,29 +169,29 @@ int read_maze(maze* this, FILE* file)
             char c = buffer[j];
             this->map[i][j] = c;
 
-            // 记录起点终点
+            // Record the starting and ending points
             if (c == 'S')
             {
                 if (this->start.x != -1)
-                    return 1; // 多个起点
+                    return 1; // Multiple starting points
                 this->start.x = j;
                 this->start.y = i;
             }
             else if (c == 'E')
             {
                 if (this->end.x != -1)
-                    return 1; // 多个终点
+                    return 1; // Multiple endpoints
                 this->end.x = j;
                 this->end.y = i;
             }
             else if (c != '#' && c != ' ')
             {
-                return 1; // 非法字符
+                return 1;
             }
         }
     }
 
-    // 验证起点终点存在
+    // Verify the existence of the starting point and the ending point
     if (this->start.x == -1 || this->end.x == -1)
     {
         return 1;
@@ -235,7 +235,7 @@ void move(maze* this, coord* player, char direction)
 {
     int dx = 0, dy = 0;
 
-    // 处理大小写输入
+    // Handle case-sensitive input
     switch (direction)
     {
     case 'W':
@@ -255,14 +255,14 @@ void move(maze* this, coord* player, char direction)
         dx = 1;
         break;
     default:
-        return; // 无效输入
+        return;
     }
 
-    // 计算新位置
+    // Calculate the new position
     int new_x = player->x + dx;
     int new_y = player->y + dy;
 
-    // 边界检查和墙壁检查
+    // Boundary and wall inspection
     if (new_x >= 0 && new_x < this->width &&
         new_y >= 0 && new_y < this->height &&
         this->map[new_y][new_x] != '#')
@@ -287,14 +287,14 @@ int has_won(maze* this, coord* player)
 
 int main(int argc, char* argv[])
 {
-    /*========== 1. 参数验证 ==========*/
+    // Parameter validation
     if (argc != 2)
     {
         fprintf(stderr, "用法: %s <迷宫文件>\n", argv[0]);
         exit(EXIT_ARG_ERROR);
     }
 
-    /*========== 2. 文件操作 ==========*/
+    // Operate files
     FILE* f = fopen(argv[1], "r");
     if (!f)
     {
@@ -302,7 +302,7 @@ int main(int argc, char* argv[])
         exit(EXIT_FILE_ERROR);
     }
 
-    /*========== 3. 读取迷宫尺寸 ==========*/
+    // Read the maze size
     int width = get_width(f);
     int height = get_height(f);
     if (width == 0 || height == 0)
@@ -312,7 +312,7 @@ int main(int argc, char* argv[])
         exit(EXIT_MAZE_ERROR);
     }
 
-    /*========== 4. 初始化迷宫结构体 ==========*/
+    //Initialize the maze structure
     maze* this_maze = (maze*)malloc(sizeof(maze));
     if (create_maze(this_maze, height, width))
     {
@@ -322,7 +322,7 @@ int main(int argc, char* argv[])
         exit(EXIT_MAZE_ERROR);
     }
 
-    /*========== 5. 读取迷宫数据 ==========*/
+    // Read maze data
     if (read_maze(this_maze, f))
     {
         fclose(f);
@@ -333,7 +333,7 @@ int main(int argc, char* argv[])
     }
     fclose(f);
 
-    /*========== 6. 游戏循环 ==========*/
+    // Loop game
     char input[10];
     coord player = this_maze->start;
     while (!has_won(this_maze, &player))
@@ -343,13 +343,13 @@ int main(int argc, char* argv[])
 
         if (!fgets(input, sizeof(input), stdin))
         {
-            break; // 读取输入失败
+            break;
         }
 
         move(this_maze, &player, input[0]);
     }
 
-    /*========== 7. 结束处理 ==========*/
+    // End processing
     printf("\n恭喜！你成功走出了迷宫！\n");
     free_maze(this_maze);
     free(this_maze);
