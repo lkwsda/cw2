@@ -93,8 +93,16 @@ void free_maze(maze* this)
  * @param file the file pointer to check
  * @return int 0 for error, or a valid width (5-100)
  */
-int get_width(FILE *file)
+int get_width(FILE* file)
 {
+    int width;
+    // 读取第一个整数并验证范围
+    if (fscanf(file, "%d", &width) != 1 ||
+        width < MIN_DIM || width > MAX_DIM)
+    {
+        return 0; // 无效宽度
+    }
+    return width;
 }
 
 /**
@@ -103,8 +111,16 @@ int get_width(FILE *file)
  * @param file the file pointer to check
  * @return int 0 for error, or a valid height (5-100)
  */
-int get_height(FILE *file)
+int get_height(FILE* file)
 {
+    int height;
+    // 读取第二个整数并验证范围
+    if (fscanf(file, "%d", &height) != 1 ||
+        height < MIN_DIM || height > MAX_DIM)
+    {
+        return 0; // 无效高度
+    }
+    return height;
 }
 
 /**
@@ -114,8 +130,73 @@ int get_height(FILE *file)
  * @param file Maze file pointer
  * @return int 0 on success, 1 on fail
  */
-int read_maze(maze *this, FILE *file)
+int read_maze(maze* this, FILE* file)
 {
+    char buffer[MAX_DIM + 2]; // +2考虑换行符和空字符
+
+    for (int i = 0; i < this->height; i++)
+    {
+        if (!fgets(buffer, sizeof(buffer), file))
+        {
+            return 1; // 文件读取失败
+        }
+
+        // 手动处理换行符和计算长度
+        int len = 0;
+        int has_newline = 0;
+        while (len < (MAX_DIM + 2) && buffer[len] != '\0')
+        {
+            if (buffer[len] == '\n')
+            {
+                has_newline = 1;
+                break;
+            }
+            len++;
+        }
+        if (has_newline)
+        {
+            buffer[len] = '\0'; // 替换换行符为结束符
+        }
+
+        // 验证行长度
+        if (len != this->width)
+        {
+            return 1; // 行长度不匹配
+        }
+
+        for (int j = 0; j < this->width; j++)
+        {
+            char c = buffer[j];
+            this->map[i][j] = c;
+
+            // 记录起点终点
+            if (c == 'S')
+            {
+                if (this->start.x != -1)
+                    return 1; // 多个起点
+                this->start.x = j;
+                this->start.y = i;
+            }
+            else if (c == 'E')
+            {
+                if (this->end.x != -1)
+                    return 1; // 多个终点
+                this->end.x = j;
+                this->end.y = i;
+            }
+            else if (c != '#' && c != ' ')
+            {
+                return 1; // 非法字符
+            }
+        }
+    }
+
+    // 验证起点终点存在
+    if (this->start.x == -1 || this->end.x == -1)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 /**
@@ -124,15 +205,13 @@ int read_maze(maze *this, FILE *file)
  * @param this pointer to maze to print
  * @param player the current player location
  */
-void print_maze(maze *this, coord *player)
+void print_maze(maze* this, coord* player)
 {
-    // make sure we have a leading newline..
     printf("\n");
     for (int i = 0; i < this->height; i++)
     {
         for (int j = 0; j < this->width; j++)
         {
-            // decide whether player is on this spot or not
             if (player->x == j && player->y == i)
             {
                 printf("X");
@@ -142,11 +221,9 @@ void print_maze(maze *this, coord *player)
                 printf("%c", this->map[i][j]);
             }
         }
-        // end each row with a newline.
         printf("\n");
     }
 }
-
 /**
  * @brief Validates and performs a movement in a given direction
  *
@@ -154,8 +231,45 @@ void print_maze(maze *this, coord *player)
  * @param player The player's current position
  * @param direction The desired direction to move in
  */
-void move(maze *this, coord *player, char direction)
+void move(maze* this, coord* player, char direction)
 {
+    int dx = 0, dy = 0;
+
+    // 处理大小写输入
+    switch (direction)
+    {
+    case 'W':
+    case 'w':
+        dy = -1;
+        break;
+    case 'A':
+    case 'a':
+        dx = -1;
+        break;
+    case 'S':
+    case 's':
+        dy = 1;
+        break;
+    case 'D':
+    case 'd':
+        dx = 1;
+        break;
+    default:
+        return; // 无效输入
+    }
+
+    // 计算新位置
+    int new_x = player->x + dx;
+    int new_y = player->y + dy;
+
+    // 边界检查和墙壁检查
+    if (new_x >= 0 && new_x < this->width &&
+        new_y >= 0 && new_y < this->height &&
+        this->map[new_y][new_x] != '#')
+    {
+        player->x = new_x;
+        player->y = new_y;
+    }
 }
 
 /**
@@ -165,26 +279,95 @@ void move(maze *this, coord *player, char direction)
  * @param player player position
  * @return int 0 for false, 1 for true
  */
-int has_won(maze *this, coord *player)
+int has_won(maze* this, coord* player)
 {
+    return (player->x == this->end.x) &&
+        (player->y == this->end.y);
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    // check args
+    /*========== 1. 参数验证 ==========*/
+    if (argc != 2)
+    {
+        fprintf(stderr, "用法: %s <迷宫文件>\n", argv[0]);
+        exit(EXIT_ARG_ERROR);
+    }
 
-    // set up some useful variables (you can rename or remove these if you want)
-    coord *player;
-    maze *this_maze = malloc(sizeof(maze));
-    FILE *f;
+    /*========== 2. 文件操作 ==========*/
+    FILE* f = fopen(argv[1], "r");
+    if (!f)
+    {
+        fprintf(stderr, "无法打开文件\n");
+        exit(EXIT_FILE_ERROR);
+    }
 
-    // open and validate mazefile
+    /*========== 3. 读取迷宫尺寸 ==========*/
+    int width = get_width(f);
+    int height = get_height(f);
+    if (width == 0 || height == 0)
+    {
+        fclose(f);
+        fprintf(stderr, "无效的迷宫尺寸\n");
+        exit(EXIT_MAZE_ERROR);
+    }
 
-    // read in mazefile to struct
+    /*========== 4. 初始化迷宫结构体 ==========*/
+    maze* this_maze = (maze*)malloc(sizeof(maze));
+    if (create_maze(this_maze, height, width))
+    {
+        fclose(f);
+        free(this_maze);
+        fprintf(stderr, "内存分配失败\n");
+        exit(EXIT_MAZE_ERROR);
+    }
 
-    // maze game loop
+    /*========== 5. 读取迷宫数据 ==========*/
+    if (read_maze(this_maze, f))
+    {
+        fclose(f);
+        free_maze(this_maze);
+        free(this_maze);
+        fprintf(stderr, "迷宫格式错误\n");
+        exit(EXIT_MAZE_ERROR);
+    }
+    fclose(f);
 
-    // win
+    /*========== 6. 游戏循环 ==========*/
+    char input[10];
+    coord player = this_maze->start;
+    while (!has_won(this_maze, &player))
+    {
+        print_maze(this_maze, &player);
+        printf("输入移动方向 (W/A/S/D): ");
 
-    // return, free, exit
+        if (!fgets(input, sizeof(input), stdin))
+        {
+            break; // 读取输入失败
+        }
+
+        move(this_maze, &player, input[0]);
+    }
+
+    /*========== 7. 结束处理 ==========*/
+    printf("\n恭喜！你成功走出了迷宫！\n");
+    free_maze(this_maze);
+    free(this_maze);
+    return EXIT_SUCCESS;
 }
+// check args
+
+// set up some useful variables (you can rename or remove these if you want)
+coord* player;
+maze* this_maze = malloc(sizeof(maze));
+FILE* f;
+
+// open and validate mazefile
+
+// read in mazefile to struct
+
+// maze game loop
+
+// win
+
+// return, free, exit
