@@ -93,15 +93,25 @@ void free_maze(maze* this)
  * @param file the file pointer to check
  * @return int 0 for error, or a valid width (5-100)
  */
-int get_width(FILE* file)
-{
-    int width;
-    // Read width integers and verify ranges
-    if (fscanf(file, "%d", &width) != 1 ||
-        width < MIN_DIM || width > MAX_DIM)
-    {
-        return 0;
+int get_width(FILE* file) {
+    char buffer[MAX_DIM + 2];
+    int width = 0;
+
+    // Read the first line to determine the width
+    if (fgets(buffer, sizeof(buffer), file)) {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0'; // 去除换行符
+            len--;
+        }
+        width = len;
     }
+
+    // Verify the width
+    if (width < MIN_DIM || width > MAX_DIM) return 0;
+
+    // Reset the file pointer
+    rewind(file);
     return width;
 }
 
@@ -111,18 +121,27 @@ int get_width(FILE* file)
  * @param file the file pointer to check
  * @return int 0 for error, or a valid height (5-100)
  */
-int get_height(FILE* file)
-{
-    int height;
-    // Read  height integers and verify ranges
-    if (fscanf(file, "%d", &height) != 1 ||
-        height < MIN_DIM || height > MAX_DIM)
-    {
-        return 0;
+int get_height(FILE* file) {
+    char buffer[MAX_DIM + 2];
+    int height = 0;
+
+    // Count the number of valid lines
+    while (fgets(buffer, sizeof(buffer), file)) {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0';
+            len--;
+        }
+        if (len > 0) height++; // Ignore blank lines
     }
+
+    // Verify the height
+    if (height < MIN_DIM || height > MAX_DIM) return 0;
+
+    // Reset the file pointer
+    rewind(file);
     return height;
 }
-
 /**
  * @brief read in a maze file into a struct
  *
@@ -290,7 +309,7 @@ int main(int argc, char* argv[])
     // Parameter validation
     if (argc != 2)
     {
-        fprintf(stderr, "用法: %s <迷宫文件>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <Maze file>\n", argv[0]);
         exit(EXIT_ARG_ERROR);
     }
 
@@ -298,7 +317,7 @@ int main(int argc, char* argv[])
     FILE* f = fopen(argv[1], "r");
     if (!f)
     {
-        fprintf(stderr, "无法打开文件\n");
+        fprintf(stderr, "can not open file\n");
         exit(EXIT_FILE_ERROR);
     }
 
@@ -308,7 +327,7 @@ int main(int argc, char* argv[])
     if (width == 0 || height == 0)
     {
         fclose(f);
-        fprintf(stderr, "无效的迷宫尺寸\n");
+        fprintf(stderr, "Invalid maze size\n");
         exit(EXIT_MAZE_ERROR);
     }
 
@@ -318,7 +337,7 @@ int main(int argc, char* argv[])
     {
         fclose(f);
         free(this_maze);
-        fprintf(stderr, "内存分配失败\n");
+        fprintf(stderr, "Memory allocation failed\n");
         exit(EXIT_MAZE_ERROR);
     }
 
@@ -328,7 +347,7 @@ int main(int argc, char* argv[])
         fclose(f);
         free_maze(this_maze);
         free(this_maze);
-        fprintf(stderr, "迷宫格式错误\n");
+        fprintf(stderr, "The maze format is incorrect\n");
         exit(EXIT_MAZE_ERROR);
     }
     fclose(f);
@@ -339,7 +358,7 @@ int main(int argc, char* argv[])
     while (!has_won(this_maze, &player))
     {
         print_maze(this_maze, &player);
-        printf("输入移动方向 (W/A/S/D): ");
+        printf("Enter the moving direction (W/A/S/D): ");
 
         if (!fgets(input, sizeof(input), stdin))
         {
@@ -350,7 +369,7 @@ int main(int argc, char* argv[])
     }
 
     // End processing
-    printf("\n恭喜！你成功走出了迷宫！\n");
+    printf("\nCongratulations You've successfully made your way out of the maze\n");
     free_maze(this_maze);
     free(this_maze);
     return EXIT_SUCCESS;
