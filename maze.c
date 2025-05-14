@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
  // defines for max and min permitted dimensions
 #define MAX_DIM 100
@@ -374,19 +375,3 @@ int main(int argc, char* argv[])
     free(this_maze);
     return EXIT_SUCCESS;
 }
-// check args
-
-// set up some useful variables (you can rename or remove these if you want)
-coord* player;
-maze* this_maze = malloc(sizeof(maze));
-FILE* f;
-
-// open and validate mazefile
-
-// read in mazefile to struct
-
-// maze game loop
-
-// win
-
-// return, free, exit
